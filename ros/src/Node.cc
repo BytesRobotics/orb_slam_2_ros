@@ -28,6 +28,11 @@ Node::Node (ORB_SLAM2::System::eSensor sensor, ros::NodeHandle &node_handle, ima
   dynamic_param_callback = boost::bind(&Node::ParamsChangedCallback, this, _1, _2);
   dynamic_param_server_.setCallback(dynamic_param_callback);
 
+  //Set the zero point for the map so that we can incorporate odom correctly
+  //camera_frame_id_param_ = frame_id   :   base_frame_id_param_ = child_frame_id
+  geometry_msgs::TransformStamped base_to_camera_zero_msg = tfBuffer.lookupTransform(base_frame_id_param_, camera_frame_id_param_, ros::Time(0));
+  tf2::fromMsg(base_to_camera_zero_msg, base_to_camera_zero);
+
   rendered_image_publisher_ = image_transport.advertise (name_of_node_+"/debug_image", 1);
   if (publish_pointcloud_param_) {
     map_points_publisher_ = node_handle_.advertise<sensor_msgs::PointCloud2> (name_of_node_+"/map_points", 1);
@@ -81,16 +86,39 @@ void Node::PublishMapPoints (std::vector<ORB_SLAM2::MapPoint*> map_points) {
 
 
 void Node::PublishPositionAsTransform (cv::Mat position) {
-  tf2::Transform transform = TransformFromMat (position);
+  tf2::Transform map_to_camera = TransformFromMat (position);
 
   // Compute the appropriate transform to the base frame (usually odom or base_link)
-  geometry_msgs::TransformStamped base_camera_transform_msg = tfBuffer.lookupTransform(camera_frame_id_param_, "base_link", ros::Time(0));
-  tf2::Stamped<tf2::Transform> base_camera_transform;
-  tf2::fromMsg(base_camera_transform_msg, base_camera_transform);
-  base_camera_transform.inverseTimes(transform);
+  geometry_msgs::TransformStamped base_to_camera_msg = tfBuffer.lookupTransform(base_frame_id_param_, camera_frame_id_param_, ros::Time(0));
+
+  //convert base transform to tf2::transform from geometry_msg
+  tf2::Stamped<tf2::Transform> base_to_camera;
+  tf2::fromMsg(base_to_camera_msg, base_to_camera);
+
+  // Handle zero on the position to shift odom into correct frame with VO
+  base_to_camera *= base_to_camera_zero.inverse(); // base_to_camera - base_to_camera_zero
+
+  //base_to_camera.inverseTimes(base_to_camera_zero); //base_to_camera -> base_to_camera_zero
+  tf2::Transform map_to_base = map_to_camera * base_to_camera.inverse(); // map_to_camera - base_to_camera
+
+  //Print TF
+//  geometry_msgs::PoseStamped print_msg;
+//  tf2::toMsg(base_to_camera, print_msg);
+//  cout << print_msg;
+  // ###
+
+  //Print TF
+//  tf2::toMsg(tf2::Stamped<tf2::Transform>(map_to_camera, current_frame_time_, map_frame_id_param_), print_msg);
+//  cout << print_msg;
+  // ###
+
+  //Print TF
+//  tf2::toMsg(tf2::Stamped<tf2::Transform>(map_to_base, current_frame_time_, map_frame_id_param_), print_msg);
+//  cout << print_msg;
+  // ###
 
   // This is the transform that goes from /map to /odom knowing that image stems from camera link
-  geometry_msgs::TransformStamped target_transform = tf2::toMsg(tf2::Stamped<tf2::Transform>(base_camera_transform, current_frame_time_, map_frame_id_param_));
+  geometry_msgs::TransformStamped target_transform = tf2::toMsg(tf2::Stamped<tf2::Transform>(map_to_base, current_frame_time_, map_frame_id_param_));
   target_transform.child_frame_id = base_frame_id_param_;
   br.sendTransform(target_transform);
 }

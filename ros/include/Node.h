@@ -87,6 +87,7 @@ class Node
     tf2_ros::Buffer tfBuffer;
     tf2_ros::TransformListener transform_listener;
     tf2_ros::TransformBroadcaster br;
+    tf2::Stamped<tf2::Transform> base_to_camera_zero;
 
     std::string map_frame_id_param_;
     std::string camera_frame_id_param_;
