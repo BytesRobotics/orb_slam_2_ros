@@ -22,7 +22,8 @@ rospy
 std_msgs
 cv_bridge
 image_transport
-tf
+tf2
+tf2_ros
 sensor_msgs
 dynamic_reconfigure
 message_generation
@@ -76,7 +77,7 @@ generate_messages(
 )
 
 catkin_package (
-  CATKIN_DEPENDS roscpp rospy std_msgs cv_bridge image_transport tf sensor_msgs dynamic_reconfigure message_runtime
+  CATKIN_DEPENDS roscpp rospy std_msgs cv_bridge image_transport tf2 tf2_ros sensor_msgs dynamic_reconfigure message_runtime
   LIBRARIES {PROJECT_NAME} libDBoW2 libg2o
 )
 

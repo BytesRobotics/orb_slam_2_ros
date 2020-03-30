@@ -25,7 +25,6 @@
 #include <ros/ros.h>
 #include <ros/time.h>
 #include <image_transport/image_transport.h>
-#include <tf/transform_broadcaster.h>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/core/core.hpp>
 
@@ -40,11 +39,16 @@
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TransformStamped.h>
 #include <sensor_msgs/CameraInfo.h>
 
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2/convert.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2/transform_datatypes.h>
+
 #include "System.h"
-
-
 
 class Node
 {
@@ -66,7 +70,7 @@ class Node
     void ParamsChangedCallback(orb_slam2_ros::dynamic_reconfigureConfig &config, uint32_t level);
     bool SaveMapSrv (orb_slam2_ros::SaveMap::Request &req, orb_slam2_ros::SaveMap::Response &res);
 
-    tf::Transform TransformFromMat (cv::Mat position_mat);
+    tf2::Transform TransformFromMat (cv::Mat position_mat);
     sensor_msgs::PointCloud2 MapPointsToPointCloud (std::vector<ORB_SLAM2::MapPoint*> map_points);
 
     dynamic_reconfigure::Server<orb_slam2_ros::dynamic_reconfigureConfig> dynamic_param_server_;
@@ -80,8 +84,13 @@ class Node
     std::string name_of_node_;
     ros::NodeHandle node_handle_;
 
+    tf2_ros::Buffer tfBuffer;
+    tf2_ros::TransformListener transform_listener;
+    tf2_ros::TransformBroadcaster br;
+
     std::string map_frame_id_param_;
     std::string camera_frame_id_param_;
+    std::string base_frame_id_param_;
     std::string map_file_name_param_;
     std::string voc_file_name_param_;
     std::string settings_file_name_param_;
