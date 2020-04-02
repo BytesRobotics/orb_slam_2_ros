@@ -30,7 +30,7 @@ Node::Node (ORB_SLAM2::System::eSensor sensor, ros::NodeHandle &node_handle, ima
 
   //Set the zero point for the map so that we can incorporate odom correctly
   //camera_frame_id_param_ = frame_id   :   base_frame_id_param_ = child_frame_id
-  geometry_msgs::TransformStamped base_to_camera_zero_msg = tfBuffer.lookupTransform(base_frame_id_param_, camera_frame_id_param_, ros::Time(0));
+  geometry_msgs::TransformStamped base_to_camera_zero_msg = tfBuffer.lookupTransform(base_frame_id_param_, camera_frame_id_param_, ros::Time(0), ros::Duration(10.0)); //Timeout trigger may not be working
   tf2::fromMsg(base_to_camera_zero_msg, base_to_camera_zero);
 
   rendered_image_publisher_ = image_transport.advertise (name_of_node_+"/debug_image", 1);

@@ -40,6 +40,8 @@
 #include "KeyFrameDatabase.h"
 #include "ORBVocabulary.h"
 
+#include "FrameManager.h"
+
 namespace ORB_SLAM2
 {
 class FrameDrawer;

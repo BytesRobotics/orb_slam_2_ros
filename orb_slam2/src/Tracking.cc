@@ -47,7 +47,7 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
         Map *pMap, KeyFrameDatabase* pKFDB, const int sensor, ros::NodeHandle &node_handle):
     mState(NO_IMAGES_YET), mSensor(sensor), mbOnlyTracking(false), mbVO(false), mpORBVocabulary(pVoc),
     mpKeyFrameDB(pKFDB), mpInitializer(static_cast<Initializer*>(NULL)), mpSystem(pSys),
-    mpFrameDrawer(pFrameDrawer), mpMap(pMap), mnLastRelocFrameId(0), mnMinimumKeyFrames(5)
+    mpFrameDrawer(pFrameDrawer), mpMap(pMap), mnLastRelocFrameId(0), mnMinimumKeyFrames(5), transform_listener(tfBuffer)
 {
     // Load camera parameters
     name_of_node_ = ros::this_node::getName();
@@ -64,7 +64,8 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
     node_handle_.param(name_of_node_ + "/ORBextractor/minThFAST", fMinThFAST, 7);
     node_handle_.param(name_of_node_ + "/depth_map_factor", mDepthMapFactor, static_cast<float>(1.0));
 
-    camera_info = ros::topic::waitForMessage<sensor_msgs::CameraInfo>("image_right/camera_info", node_handle_, ros::Duration(10.0));
+    // ##################################################################################################### Timeout duration not working
+    camera_info = ros::topic::waitForMessage<sensor_msgs::CameraInfo>("image_right/camera_info", ros::Duration(10.0));
     if(camera_info == nullptr){
         ROS_ERROR("Did not receive camera info before timeout!");
         throw std::runtime_error("Timeout");
@@ -875,7 +876,52 @@ bool Tracking::TrackWithMotionModel()
     // Create "visual odometry" points if in Localization Mode
     UpdateLastFrame();
 
+    cout << "Velocity: " << mVelocity.col(3) << endl;
+
+    geometry_msgs::TransformStamped base_to_camera_msg = tfBuffer.lookupTransform("odom", "stereo_cam_link", ros::Time(0));
+    tf2::Stamped<tf2::Transform> base_to_camera1;
+    tf2::fromMsg(base_to_camera_msg, base_to_camera1);
+
+    ros::Duration(0.04).sleep();
+
+
+    base_to_camera_msg = tfBuffer.lookupTransform("odom", "stereo_cam_link", ros::Time(0));
+    tf2::Stamped<tf2::Transform> base_to_camera2;
+    tf2::fromMsg(base_to_camera_msg, base_to_camera2);
+
+    double dt = base_to_camera2.stamp_.toSec() - base_to_camera1.stamp_.toSec();
+
+//    cout << dt << " " << base_to_camera1.getOrigin().getX() << " " << base_to_camera2.getOrigin().getX()  << endl;
+
+    // In order to get the velocity in the camera frame we need to account for hte rotations.
+    // This can be done by Rco*Po where o is the odometry frame, c  is the camera frame (what we want our velocities to be in)
+    // and Roc is the rotation between odometry and camera frames and is found as the Rotation matrix provided by the
+    // lookup transform's tf2::transform using the getRotation method
+
+    tf2::Quaternion base_to_camera1_Rco = base_to_camera1.getRotation().inverse();
+    tf2::Quaternion base_to_camera2_Rco = base_to_camera2.getRotation().inverse();
+
+    // Position of the camera in he odometry frame
+    tf2::Vector3 base_to_camera1_Po = base_to_camera1.getOrigin();
+    tf2::Vector3 base_to_camera2_Po = base_to_camera2.getOrigin();
+
+    // Now we need to get the positions in the odometry frame to the camera frame. We need this equation: Pout = q * Pin * conj(q)
+    // Where conj(q) = conj(a + b i + c j + d k) = a - b i - c j - d k = the inverse of the rotation matrix
+    // See http://docs.ros.org/kinetic/api/tf2/html/Quaternion_8h_source.html#l00144 line 436
+    tf2::Vector3 base_to_camera1_Pc = tf2::quatRotate(base_to_camera1_Rco, base_to_camera1_Po);
+    tf2::Vector3 base_to_camera2_Pc = tf2::quatRotate(base_to_camera2_Rco, base_to_camera2_Po);
+
+
+    tf2::Vector3 velocity = (base_to_camera2_Pc - base_to_camera1_Pc);
+
+    cout << "Velocity from Odom: " << velocity.getX() << " " << velocity.getY() << " " << velocity.getZ() << endl;
+
+
     mCurrentFrame.SetPose(mVelocity*mLastFrame.mTcw);
+
+//    cout << "Last mTcw: " << mLastFrame.mTcw << endl;
+//
+//    cout << "Current mTcw: " << mCurrentFrame.mTcw << endl;
 
     fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
 

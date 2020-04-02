@@ -28,6 +28,12 @@
 
 #include <ros/ros.h>
 #include <sensor_msgs/CameraInfo.h>
+#include <tf2/buffer_core.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2/convert.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2/transform_datatypes.h>
 
 
 #include"FrameDrawer.h"
@@ -69,8 +75,8 @@ public:
     void SetMinimumKeyFrames (int min_num_kf) {mnMinimumKeyFrames = min_num_kf;}
 
     // Load new settings
-    // The focal lenght should be similar or scale prediction will fail when projecting points
-    // TODO: Modify MapPoint::PredictScale to take into account focal lenght
+    // The focal length should be similar or scale prediction will fail when projecting points
+    // TODO: Modify MapPoint::PredictScale to take into account focal length
     void ChangeCalibration(const string &strSettingPath);
 
     // Use this function if you have deactivated local mapping and you only want to localize the camera.
@@ -152,7 +158,7 @@ protected:
     // "zero-drift" localization to the map.
     bool mbVO;
 
-    //Numer of Keyframes a map has to have to not get a reset in the event of lost tracking.
+    //Number of Keyframes a map has to have to not get a reset in the event of lost tracking.
     int mnMinimumKeyFrames;
 
     //Other Thread Pointers
@@ -227,8 +233,13 @@ protected:
     int nLevels;
     int fIniThFAST;
     int fMinThFAST;
+
+    // Custom ROS stuff
     sensor_msgs::CameraInfo::ConstPtr camera_info;
 
+    // This will be for using the odom as the motion model
+    tf2_ros::Buffer tfBuffer;
+    tf2_ros::TransformListener transform_listener;
 };
 
 } //namespace ORB_SLAM
