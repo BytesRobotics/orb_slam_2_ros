@@ -876,7 +876,7 @@ bool Tracking::TrackWithMotionModel()
     // Create "visual odometry" points if in Localization Mode
     UpdateLastFrame();
 
-    cout << "Velocity: " << mVelocity.col(3) << endl;
+//    cout << "Velocity: " << mVelocity.col(3) << endl;
 
     geometry_msgs::TransformStamped base_to_camera_msg = tfBuffer.lookupTransform("odom", "stereo_cam_link", ros::Time(0));
     tf2::Stamped<tf2::Transform> base_to_camera1;
@@ -914,7 +914,7 @@ bool Tracking::TrackWithMotionModel()
 
     tf2::Vector3 velocity = (base_to_camera2_Pc - base_to_camera1_Pc);
 
-    cout << "Velocity from Odom: " << velocity.getX() << " " << velocity.getY() << " " << velocity.getZ() << endl;
+//    cout << "Velocity from Odom: " << velocity.getX() << " " << velocity.getY() << " " << velocity.getZ() << endl;
 
 
     mCurrentFrame.SetPose(mVelocity*mLastFrame.mTcw);
